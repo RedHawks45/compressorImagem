@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="antialiased">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compressor de Imagens </title>
+
+  <!-- Fonte Inter do Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* Padrão quadriculado sutil para visualizar transparência em imagens PNG/WebP */
+    .bg-checkerboard {
+      background-color: #f1f5f9;
+      background-image:
+        linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+        linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+    .dark .bg-checkerboard {
+      background-color: #1e293b;
+      background-image:
+        linear-gradient(45deg, #334155 25%, transparent 25%),
+        linear-gradient(-45deg, #334155 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #334155 75%),
+        linear-gradient(-45deg, transparent 75%, #334155 75%);
+    }
+
+    /* Estilização customizada acessível para o slider de qualidade */
+    input[type="range"].quality-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 8px;
+      border-radius: 9999px;
+      outline: none;
+    }
+    input[type="range"].quality-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4f46e5;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.45);
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"].quality-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #4338ca;
+    }
+    input[type="range"].quality-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #4f46e5;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.45);
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+
+  <!-- Cabeçalho Principal -->
+  <header class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <!-- Marca e Descrição -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shadow-indigo-600/30 shrink-0">
+          <!-- Ícone de compressão SVG -->
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Comprime<span class="text-indigo-600 dark:text-indigo-400">Local</span>
+            </h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/70">
+              v1.0
+            </span>
+          </div>
+         
+        </div>
+      </div>
+
+      <!-- Selo de Privacidade + Alternador de Tema -->
+      <div class="flex items-center gap-2.5 ml-auto sm:ml-0">
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/70 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
+          <svg class="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+
+        <button
+          id="themeToggleBtn"
+          type="button"
+          aria-label="Alternar tema claro ou escuro"
+          title="Alternar tema"
+          class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        >
+          <!-- Ícone Sol (visível no modo escuro) -->
+          <svg id="sunIcon" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <!-- Ícone Lua (visível no modo claro) -->
+          <svg id="moonIcon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+
+    <!-- Faixa Explicativa de Privacidade -->
+    <section class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 sm:p-6 text-white shadow-md shadow-indigo-600/15">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1.5 max-w-2xl">
+          <h2 class="text-lg sm:text-xl font-semibold">
+            Compressão instantânea direto no seu navegador
+          </h2>
+         
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <span class="px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-sm text-xs font-medium">
+            Sem limite de arquivos
+          </span>
+          <span class="px-3 py-1.5 rounded-xl bg-white/15 backdrop-blur-sm text-xs font-medium">
+            Zero upload externo
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Área de Upload (Drag & Drop + Seleção) -->
+    <section>
+      <div
+        id="dropZone"
+        role="button"
+        tabindex="0"
+        aria-label="Área para arrastar e soltar imagens ou clicar para selecionar arquivos"
+        class="group relative border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-400 bg-white dark:bg-slate-900 rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+      >
+        <input
+          id="fileInput"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          class="hidden"
+        />
+
+        <div class="flex flex-col items-center justify-center space-y-4 pointer-events-none">
+          <div id="dropIconWrapper" class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+
+          <div class="space-y-1">
+            <p class="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">
+              Arraste e solte suas imagens aqui
+            </p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              ou <span class="text-indigo-600 dark:text-indigo-400 font-medium underline underline-offset-2">clique para selecionar do seu dispositivo</span>
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium">JPEG / JPG</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium">PNG</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium">WebP</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium">Múltiplos arquivos</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botão discreto para gerar imagem de teste caso o usuário queira experimentar imediatamente -->
+      <div class="mt-2.5 flex justify-end">
+        <button
+          id="sampleImageBtn"
+          type="button"
+          class="text-xs font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Testar com uma imagem de exemplo</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Painel de Configurações de Compressão em Tempo Real -->
+    <section aria-labelledby="settingsHeading" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          <h2 id="settingsHeading" class="text-base font-semibold text-slate-900 dark:text-white">
+            Configurações de Compressão em Tempo Real
+          </h2>
+        </div>
+        <span class="text-xs text-slate-500 dark:text-slate-400">
+          Alterações recalculam automaticamente todas as imagens
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 1. Slider de Qualidade -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label for="qualitySlider" class="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Qualidade da Imagem
+            </label>
+            <span id="qualityValueBadge" class="px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-sm tabular-nums">
+              80%
+            </span>
+          </div>
+
+          <input
+            id="qualitySlider"
+            type="range"
+            min="10"
+            max="100"
+            step="1"
+            value="80"
+            class="quality-slider w-full bg-slate-200 dark:bg-slate-700"
+          />
+
+          <div class="flex justify-between text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+            <span>10% (Menor arquivo)</span>
+            <span>80% (Ideal)</span>
+            <span>100% (Máxima)</span>
+          </div>
+          <p id="pngQualityHint" class="hidden text-xs text-amber-600 dark:text-amber-400 pt-0.5">
+            Nota: O formato PNG é sem perdas e ignora o controle de qualidade. Converta para WebP ou JPEG para maior redução.
+          </p>
+        </div>
+
+        <!-- 2. Seletor de Formato de Saída -->
+        <div class="space-y-2">
+          <label for="formatSelect" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Formato de Saída
+          </label>
+          <div class="relative">
+            <select
+              id="formatSelect"
+              class="w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 pr-10 text-sm font-medium text-slate-800 dark:text-slate-100 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-colors cursor-pointer"
+            >
+              <option value="original">Manter formato original</option>
+              <option value="image/webp">WebP (Recomendado — menor tamanho)</option>
+              <option value="image/jpeg">JPEG (Compatibilidade universal)</option>
+              <option value="image/png">PNG (Sem perdas / Transparência)</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            WebP reduz até 30% mais que JPEG mantendo transparência.
+          </p>
+        </div>
+
+        <!-- 3. Seletor de Largura Máxima -->
+        <div class="space-y-2">
+          <label for="maxWidthSelect" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
+            Largura Máxima (Redimensionar)
+          </label>
+          <div class="relative">
+            <select
+              id="maxWidthSelect"
+              class="w-full appearance-none rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3.5 py-2.5 pr-10 text-sm font-medium text-slate-800 dark:text-slate-100 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-colors cursor-pointer"
+            >
+              <option value="0">Original (Não redimensionar)</option>
+              <option value="1920">1920px (Full HD)</option>
+              <option value="1280">1280px (HD / Web)</option>
+              <option value="800">800px (Miniaturas / Blog)</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Mantém a proporção original e nunca amplia imagens menores.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Barra de Resumo Geral (Exibida quando há imagens na lista) -->
+    <section
+      id="summaryBar"
+      class="hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm"
+    >
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <!-- Estatísticas Totais -->
+        <div class="flex flex-wrap items-center gap-4 sm:gap-6">
+          <div>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Arquivos
+            </p>
+            <p id="totalFilesCount" class="text-lg font-bold text-slate-900 dark:text-white tabular-nums">
+              0 imagens
+            </p>
+          </div>
+
+          <div class="h-8 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+
+          <div>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Tamanho Total
+            </p>
+            <p class="text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
+              <span id="totalOriginalSize">0 KB</span>
+              <span class="mx-1.5 text-slate-400">→</span>
+              <span id="totalCompressedSize" class="text-indigo-600 dark:text-indigo-400 font-bold">0 KB</span>
+            </p>
+          </div>
+
+          <div class="h-8 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block"></div>
+
+          <div>
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              Total Economizado
+            </p>
+            <div class="flex items-center gap-2">
+              <span id="totalSavedBytes" class="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                0 KB
+              </span>
+              <span id="totalSavedPercentBadge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 tabular-nums">
+                0%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botões de Ação em Lote -->
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            id="clearAllBtn"
+            type="button"
+            class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-950/50 dark:hover:text-rose-400 dark:hover:border-rose-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span id="clearAllBtnText">Limpar Lista</span>
+          </button>
+
+          <button
+            id="downloadAllBtn"
+            type="button"
+            class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-sm shadow-indigo-600/25 inline-flex items-center gap-2 transition-all"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Baixar Todas (.ZIP)</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lista de Resultados -->
+    <section aria-label="Lista de imagens processadas" class="space-y-3">
+      <div id="resultsList" class="space-y-3"></div>
+    </section>
+
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 mt-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+      <p>
+        ComprimeLocal — Processamento 100% local via HTML5 Canvas API. Nenhum arquivo é armazenado na nuvem.
+      </p>
+      <p>
+        Formatos suportados: JPEG, PNG e WebP
+      </p>
+    </div>
+  </footer>
+
+  <!-- Modal de Comparação Visual "Antes vs. Depois" -->
+  <div
+    id="compareModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="compareModalTitle"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-sm"
+  >
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+      <!-- Cabeçalho do Modal -->
+      <div class="px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <h3 id="compareModalTitle" class="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
+            Comparação Visual: Antes vs. Depois
+          </h3>
+          <p id="compareModalSubtitle" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">
+            Arraste o divisor central para inspecionar os detalhes da compressão
+          </p>
+        </div>
+        <button
+          id="closeCompareModalBtn"
+          type="button"
+          aria-label="Fechar janela de comparação"
+          class="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Barra de Metadados Lado a Lado -->
+      <div class="px-4 sm:px-6 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-500"></span>
+          <span class="font-semibold text-slate-700 dark:text-slate-200">Original (Esquerda):</span>
+          <span id="modalOriginalMeta" class="text-slate-600 dark:text-slate-300 tabular-nums">—</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+          <span class="font-semibold text-slate-700 dark:text-slate-200">Comprimida (Direita):</span>
+          <span id="modalCompressedMeta" class="text-slate-600 dark:text-slate-300 tabular-nums">—</span>
+          <span id="modalSavingsBadge" class="px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 tabular-nums">
+            -0%
+          </span>
+        </div>
+      </div>
+
+      <!-- Área Interativa do Slider Antes/Depois -->
+      <div class="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center bg-slate-100 dark:bg-slate-950 select-none">
+        <div
+          id="compareStage"
+          class="relative inline-block max-w-full max-h-[60vh] overflow-hidden rounded-xl border border-slate-300 dark:border-slate-700 shadow-lg bg-checkerboard cursor-ew-resize touch-none"
+        >
+          <!-- Imagem Base (Depois / Comprimida) -->
+          <img
+            id="compareAfterImg"
+            alt="Imagem comprimida"
+            class="block max-w-full max-h-[60vh] w-auto h-auto object-contain pointer-events-none select-none"
+          />
+
+          <!-- Camada Superior Recortada (Antes / Original) -->
+          <div
+            id="compareBeforeClip"
+            class="absolute inset-0 overflow-hidden pointer-events-none"
+            style="clip-path: inset(0 50% 0 0);"
+          >
+            <img
+              id="compareBeforeImg"
+              alt="Imagem original"
+              class="block w-full h-full object-contain pointer-events-none select-none"
+            />
+          </div>
+
+          <!-- Etiquetas Flutuantes -->
+          <span class="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-slate-900/75 text-white text-xs font-semibold backdrop-blur-sm pointer-events-none">
+            Antes (Original)
+          </span>
+          <span class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-indigo-600/90 text-white text-xs font-semibold backdrop-blur-sm pointer-events-none">
+            Depois (Comprimida)
+          </span>
+
+          <!-- Linha Divisória e Manípulo Arrastável -->
+          <div
+            id="compareDivider"
+            class="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.6)] pointer-events-none"
+            style="left: 50%;"
+          >
+            <div class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white text-slate-800 shadow-lg border-2 border-indigo-600 flex items-center justify-center">
+              <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l-3 3 3 3m8-6l3 3-3 3" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rodapé do Modal -->
+      <div class="px-4 sm:px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3">
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          Dica: Arraste o controle ou use as setas <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px]">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-[11px]">→</kbd> do teclado.
+        </p>
+        <div class="flex items-center gap-2.5 ml-auto">
+          <button
+            id="modalDownloadBtn"
+            type="button"
+            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>Baixar Comprimida</span>
+          </button>
+          <button
+            id="modalCloseFooterBtn"
+            type="button"
+            class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm font-medium transition-colors"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container de Notificações Toast (Substitui alert/confirm) -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Lógica Principal da Aplicação (Vanilla JavaScript) -->
+  <script>
+    (function () {
+      'use strict';
+
+      // =========================================================================
+      // 1. ESTADO GLOBAL DA APLICAÇÃO
+      // =========================================================================
+      const state = {
+        images: [], // Lista de objetos representando cada imagem carregada
+        settings: {
+          quality: 0.80,       // 0.10 a 1.00
+          format: 'original',  // 'original' | 'image/webp' | 'image/jpeg' | 'image/png'
+          maxWidth: 0,         // 0 (original) | 1920 | 1280 | 800
+        },
+        generationId: 0,       // Controle para evitar condições de corrida ao mover sliders rapidamente
+        activeCompareId: null, // ID da imagem atualmente aberta no modal de comparação
+        clearConfirmTimer: null,
+        clearConfirmActive: false,
+      };
+
+      const ACCEPTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+      // =========================================================================
+      // 2. REFERÊNCIAS AOS ELEMENTOS DO DOM
+      // =========================================================================
+      const dom = {
+        themeToggleBtn: document.getElementById('themeToggleBtn'),
+        dropZone: document.getElementById('dropZone'),
+        fileInput: document.getElementById('fileInput'),
+        sampleImageBtn: document.getElementById('sampleImageBtn'),
+        qualitySlider: document.getElementById('qualitySlider'),
+        qualityValueBadge: document.getElementById('qualityValueBadge'),
+        pngQualityHint: document.getElementById('pngQualityHint'),
+        formatSelect: document.getElementById('formatSelect'),
+        maxWidthSelect: document.getElementById('maxWidthSelect'),
+        summaryBar: document.getElementById('summaryBar'),
+        totalFilesCount: document.getElementById('totalFilesCount'),
+        totalOriginalSize: document.getElementById('totalOriginalSize'),
+        totalCompressedSize: document.getElementById('totalCompressedSize'),
+        totalSavedBytes: document.getElementById('totalSavedBytes'),
+        totalSavedPercentBadge: document.getElementById('totalSavedPercentBadge'),
+        clearAllBtn: document.getElementById('clearAllBtn'),
+        clearAllBtnText: document.getElementById('clearAllBtnText'),
+        downloadAllBtn: document.getElementById('downloadAllBtn'),
+        resultsList: document.getElementById('resultsList'),
+        // Elementos do Modal de Comparação
+        compareModal: document.getElementById('compareModal'),
+        compareModalTitle: document.getElementById('compareModalTitle'),
+        modalOriginalMeta: document.getElementById('modalOriginalMeta'),
+        modalCompressedMeta: document.getElementById('modalCompressedMeta'),
+        modalSavingsBadge: document.getElementById('modalSavingsBadge'),
+        compareStage: document.getElementById('compareStage'),
+        compareBeforeClip: document.getElementById('compareBeforeClip'),
+        compareBeforeImg: document.getElementById('compareBeforeImg'),
+        compareAfterImg: document.getElementById('compareAfterImg'),
+        compareDivider: document.getElementById('compareDivider'),
+        closeCompareModalBtn: document.getElementById('closeCompareModalBtn'),
+        modalCloseFooterBtn: document.getElementById('modalCloseFooterBtn'),
+        modalDownloadBtn: document.getElementById('modalDownloadBtn'),
+        toastContainer: document.getElementById('toastContainer'),
+      };
+
+      // =========================================================================
+      // 3. UTILITÁRIOS GERAIS (FORMATAÇÃO, TOASTS, TEMA)
+      // =========================================================================
+
+      /**
+       * Inicializa o tema (claro/escuro) com base na preferência salva ou do sistema.
+       */
+      function initTheme() {
+        const savedTheme = localStorage.getItem('comprimelocal-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      }
+
+      function toggleTheme() {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('comprimelocal-theme', isDark ? 'dark' : 'light');
+      }
+
+      /**
+       * Formata bytes em string legível (B, KB, MB, GB) no padrão PT-BR.
+       */
+      function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+        const value = bytes / Math.pow(k, i);
+        const decimals = i === 0 ? 0 : i === 1 ? 1 : 2;
+        return value.toLocaleString('pt-BR', {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        }) + ' ' + sizes[i];
+      }
+
+      /**
+       * Retorna o rótulo curto e a extensão correspondente a um MIME type de imagem.
+       */
+      function getFormatInfo(mimeType) {
+        switch (mimeType) {
+          case 'image/webp':
+            return { label: 'WEBP', ext: 'webp' };
+          case 'image/png':
+            return { label: 'PNG', ext: 'png' };
+          case 'image/jpeg':
+          default:
+            return { label: 'JPEG', ext: 'jpg' };
+        }
+      }
+
+      /**
+       * Gera o nome final do arquivo comprimido com a extensão adequada.
+       */
+      function buildOutputFileName(originalName, outputMimeType) {
+        const { ext } = getFormatInfo(outputMimeType);
+        const lastDotIndex = originalName.lastIndexOf('.');
+        const baseName = lastDotIndex > 0 ? originalName.substring(0, lastDotIndex) : originalName;
+        return `${baseName}-comprimida.${ext}`;
+      }
+
+      /**
+       * Exibe uma notificação Toast não intrusiva no canto inferior direito.
+       */
+      function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        const styles = {
+          info: 'bg-slate-900 dark:bg-slate-800 text-white border-slate-700',
+          success: 'bg-emerald-600 text-white border-emerald-500',
+          warning: 'bg-amber-600 text-white border-amber-500',
+          error: 'bg-rose-600 text-white border-rose-500',
+        };
+
+        toast.className = `pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl border shadow-lg text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${styles[type] || styles.info}`;
+        toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+
+        dom.toastContainer.appendChild(toast);
+
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+
+        setTimeout(() => {
+          toast.classList.add('translate-y-2', 'opacity-0');
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
+      }
+
+      /**
+       * Escapa caracteres HTML especiais para evitar XSS em nomes de arquivos.
+       */
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // =========================================================================
+      // 4. CARREGAMENTO E PROCESSAMENTO ASSÍNCRONO VIA HTML5 CANVAS
+      // =========================================================================
+
+      /**
+       * Carrega um objeto File em um elemento HTMLImageElement decodificado.
+       */
+      function loadImageFromFile(file) {
+        return new Promise((resolve, reject) => {
+          const objectUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => resolve({ img, objectUrl });
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error(`Falha ao decodificar a imagem "${file.name}".`));
+          };
+          img.src = objectUrl;
+        });
+      }
+
+      /**
+       * Processa/comprime uma única imagem usando HTML5 Canvas API (canvas.toBlob).
+       */
+      function compressSingleImage(item, settings) {
+        return new Promise((resolve, reject) => {
+          try {
+            const { imgElement, originalWidth, originalHeight, originalType, name } = item;
+
+            // Determina o formato de saída
+            const outputType = settings.format === 'original' ? originalType : settings.format;
+
+            // Calcula as dimensões finais mantendo a proporção (sem nunca ampliar)
+            let targetWidth = originalWidth;
+            let targetHeight = originalHeight;
+
+            if (settings.maxWidth > 0 && originalWidth > settings.maxWidth) {
+              const scaleFactor = settings.maxWidth / originalWidth;
+              targetWidth = Math.round(originalWidth * scaleFactor);
+              targetHeight = Math.round(originalHeight * scaleFactor);
+            }
+
+            // Cria o canvas offscreen
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              throw new Error('Contexto 2D do Canvas indisponível.');
+            }
+
+            // Alta qualidade de interpolação ao redimensionar
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            // Se a saída for JPEG, preenche o fundo de branco para evitar fundo preto em PNGs transparentes
+            if (outputType === 'image/jpeg') {
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, targetWidth, targetHeight);
+            }
+
+            ctx.drawImage(imgElement, 0, 0, targetWidth, targetHeight);
+
+            // Converte para Blob de forma assíncrona
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) {
+                  reject(new Error(`Não foi possível gerar o arquivo comprimido para "${name}".`));
+                  return;
+                }
+                resolve({
+                  blob,
+                  width: targetWidth,
+                  height: targetHeight,
+                  outputType,
+                  outputFileName: buildOutputFileName(name, outputType),
+                });
+              },
+              outputType,
+              settings.quality
+            );
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+
+      /**
+       * Adiciona novos arquivos selecionados ou arrastados à fila e inicia a compressão.
+       */
+      async function handleIncomingFiles(fileList) {
+        const files = Array.from(fileList || []);
+        if (files.length === 0) return;
+
+        const validFiles = [];
+        let ignoredCount = 0;
+
+        for (const file of files) {
+          if (ACCEPTED_MIME_TYPES.includes(file.type)) {
+            validFiles.push(file);
+          } else {
+            ignoredCount++;
+          }
+        }
+
+        if (ignoredCount > 0) {
+          showToast(
+            `${ignoredCount} arquivo(s) ignorado(s). Use apenas JPEG, PNG ou WebP.`,
+            'warning'
+          );
+        }
+
+        if (validFiles.length === 0) return;
+
+        const currentGen = state.generationId;
+
+        for (const file of validFiles) {
+          const id = 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
+          // Cria entrada inicial em estado "processando"
+          const item = {
+            id,
+            file,
+            name: file.name,
+            originalSize: file.size,
+            originalType: file.type,
+            originalWidth: 0,
+            originalHeight: 0,
+            originalUrl: null,
+            imgElement: null,
+            status: 'processing',
+            compressedBlob: null,
+            compressedUrl: null,
+            compressedSize: 0,
+            compressedWidth: 0,
+            compressedHeight: 0,
+            outputType: file.type,
+            outputFileName: file.name,
+          };
+
+          state.images.push(item);
+          renderUI();
+
+          try {
+            const { img, objectUrl } = await loadImageFromFile(file);
+            item.imgElement = img;
+            item.originalUrl = objectUrl;
+            item.originalWidth = img.naturalWidth;
+            item.originalHeight = img.naturalHeight;
+
+            await recompressItem(item, currentGen);
+          } catch (error) {
+            console.error(error);
+            item.status = 'error';
+            renderUI();
+            showToast(`Erro ao carregar "${file.name}".`, 'error');
+          }
+        }
+      }
+
+      /**
+       * Reprocessa um item individual e atualiza sua URL de preview com segurança de memória.
+       */
+      async function recompressItem(item, expectedGen) {
+        if (!item.imgElement) return;
+
+        item.status = 'processing';
+        updateCardDOM(item);
+
+        try {
+          const result = await compressSingleImage(item, state.settings);
+
+          // Se o usuário alterou outra configuração enquanto esta rodava, descarta o resultado obsoleto
+          if (expectedGen !== state.generationId) return;
+
+          if (item.compressedUrl) {
+            URL.revokeObjectURL(item.compressedUrl);
+          }
+
+          item.compressedBlob = result.blob;
+          item.compressedUrl = URL.createObjectURL(result.blob);
+          item.compressedSize = result.blob.size;
+          item.compressedWidth = result.width;
+          item.compressedHeight = result.height;
+          item.outputType = result.outputType;
+          item.outputFileName = result.outputFileName;
+          item.status = 'done';
+
+          updateCardDOM(item);
+          updateSummaryBar();
+
+          // Se o modal de comparação estiver aberto para esta imagem, atualiza-o em tempo real
+          if (state.activeCompareId === item.id) {
+            populateCompareModal(item);
+          }
+        } catch (error) {
+          console.error(error);
+          item.status = 'error';
+          updateCardDOM(item);
+        }
+      }
+
+      /**
+       * Dispara o recálculo de todas as imagens da lista quando alguma configuração muda.
+       */
+      function recompressAllImages() {
+        state.generationId++;
+        const currentGen = state.generationId;
+        updatePngHintVisibility();
+
+        if (state.images.length === 0) return;
+
+        for (const item of state.images) {
+          recompressItem(item, currentGen);
+        }
+      }
+
+      // =========================================================================
+      // 5. RENDERIZAÇÃO DA INTERFACE E ATUALIZAÇÕES DO DOM
+      // =========================================================================
+
+      function updatePngHintVisibility() {
+        const hasPngSelected = state.settings.format === 'image/png';
+        const hasOriginalPng =
+          state.settings.format === 'original' &&
+          state.images.some((img) => img.originalType === 'image/png');
+
+        if (hasPngSelected || hasOriginalPng) {
+          dom.pngQualityHint.classList.remove('hidden');
+        } else {
+          dom.pngQualityHint.classList.add('hidden');
+        }
+      }
+
+      function renderUI() {
+        updatePngHintVisibility();
+        renderResultsList();
+        updateSummaryBar();
+      }
+
+      /**
+       * Renderiza a lista completa de cards de resultados.
+       */
+      function renderResultsList() {
+        dom.resultsList.innerHTML = '';
+
+        for (const item of state.images) {
+          const card = createResultCardElement(item);
+          dom.resultsList.appendChild(card);
+        }
+      }
+
+      /**
+       * Cria o elemento DOM de um card de imagem na lista de resultados.
+       */
+      function createResultCardElement(item) {
+        const card = document.createElement('article');
+        card.id = `card-${item.id}`;
+        card.className =
+          'bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-slate-300 dark:hover:border-slate-700 transition-all';
+        card.innerHTML = getCardInnerHtml(item);
+        return card;
+      }
+
+      /**
+       * Atualiza apenas o conteúdo interno de um card específico (evita flicker de thumbnails).
+       */
+      function updateCardDOM(item) {
+        const existingCard = document.getElementById(`card-${item.id}`);
+        if (existingCard) {
+          existingCard.innerHTML = getCardInnerHtml(item);
+        } else {
+          renderResultsList();
+        }
+      }
+
+      /**
+       * Monta o HTML interno de cada item da lista de resultados.
+       */
+      function getCardInnerHtml(item) {
+        const previewSrc = item.compressedUrl || item.originalUrl || '';
+        const origFormat = getFormatInfo(item.originalType).label;
+        const outFormat = getFormatInfo(item.outputType).label;
+
+        const isResized =
+          item.originalWidth > 0 &&
+          item.compressedWidth > 0 &&
+          (item.originalWidth !== item.compressedWidth || item.originalHeight !== item.compressedHeight);
+
+        const dimensionsHtml =
+          item.originalWidth > 0
+            ? isResized
+              ? `<span class="line-through text-slate-400">${item.originalWidth}×${item.originalHeight}</span> <span class="text-indigo-600 dark:text-indigo-400 font-medium">→ ${item.compressedWidth}×${item.compressedHeight} px</span>`
+              : `<span>${item.originalWidth}×${item.originalHeight} px</span>`
+            : `<span>Carregando dimensões...</span>`;
+
+        // Cálculo da porcentagem de economia
+        let badgeHtml = '';
+        let sizeComparisonHtml = '';
+
+        if (item.status === 'processing') {
+          badgeHtml = `
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+              <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              Comprimindo...
+            </span>
+          `;
+          sizeComparisonHtml = `<span>${formatBytes(item.originalSize)}</span>`;
+        } else if (item.status === 'error') {
+          badgeHtml = `
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+              Erro ao processar
+            </span>
+          `;
+          sizeComparisonHtml = `<span>${formatBytes(item.originalSize)}</span>`;
+        } else {
+          const diffBytes = item.originalSize - item.compressedSize;
+          const pct = item.originalSize > 0 ? Math.round((diffBytes / item.originalSize) * 100) : 0;
+
+          if (diffBytes > 0) {
+            badgeHtml = `
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 tabular-nums">
+                -${pct}%
+              </span>
+            `;
+          } else if (diffBytes === 0) {
+            badgeHtml = `
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 tabular-nums">
+                0% (Sem alteração)
+              </span>
+            `;
+          } else {
+            const increasePct = Math.abs(pct);
+            badgeHtml = `
+              <span title="O arquivo final ficou maior que o original. Tente reduzir a qualidade ou escolher WebP." class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/90 dark:text-amber-300 tabular-nums">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                +${increasePct}% (Maior)
+              </span>
+            `;
+          }
+
+          sizeComparisonHtml = `
+            <span class="text-slate-500 dark:text-slate-400 tabular-nums">${formatBytes(item.originalSize)}</span>
+            <span class="mx-1.5 text-slate-400">→</span>
+            <span class="font-bold text-slate-900 dark:text-white tabular-nums">${formatBytes(item.compressedSize)}</span>
+          `;
+        }
+
+        const isReady = item.status === 'done';
+
+        return `
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <!-- Esquerda: Miniatura + Informações do Arquivo -->
+            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+              <div class="w-16 h-16 sm:w-18 sm:h-18 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-checkerboard shrink-0 flex items-center justify-center">
+                ${
+                  previewSrc
+                    ? `<img src="${previewSrc}" alt="${escapeHtml(item.name)}" class="w-full h-full object-cover" />`
+                    : `<svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`
+                }
+              </div>
+
+              <div class="min-w-0 flex-1 space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-sm sm:text-base font-semibold text-slate-900 dark:text-white truncate max-w-full sm:max-w-md" title="${escapeHtml(item.name)}">
+                    ${escapeHtml(item.name)}
+                  </h3>
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    ${origFormat === outFormat ? outFormat : `${origFormat} → ${outFormat}`}
+                  </span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                  <div>${dimensionsHtml}</div>
+                  <span class="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+                  <div>${sizeComparisonHtml}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Direita: Badge de Economia + Botões de Ação -->
+            <div class="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
+              <div class="mr-auto lg:mr-2">
+                ${badgeHtml}
+              </div>
+
+              <div class="flex items-center gap-2">
+                <!-- Botão Comparar Antes vs. Depois -->
+                <button
+                  type="button"
+                  data-action="compare"
+                  data-id="${item.id}"
+                  ${!isReady ? 'disabled' : ''}
+                  title="Comparar Antes vs. Depois"
+                  class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 dark:hover:bg-indigo-950/60 dark:hover:text-indigo-300 dark:hover:border-indigo-800 disabled:opacity-40 disabled:pointer-events-none text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span>Comparar</span>
+                </button>
+
+                <!-- Botão Download Individual -->
+                <button
+                  type="button"
+                  data-action="download"
+                  data-id="${item.id}"
+                  ${!isReady ? 'disabled' : ''}
+                  title="Baixar imagem comprimida"
+                  class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:pointer-events-none text-white text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 shadow-sm transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Baixar</span>
+                </button>
+
+                <!-- Botão Remover Item -->
+                <button
+                  type="button"
+                  data-action="remove"
+                  data-id="${item.id}"
+                  aria-label="Remover imagem da lista"
+                  title="Remover item"
+                  class="p-2 rounded-xl border border-transparent text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 dark:hover:text-rose-400 transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      /**
+       * Atualiza a barra de resumo geral com os totais economizados.
+       */
+      function updateSummaryBar() {
+        if (state.images.length === 0) {
+          dom.summaryBar.classList.add('hidden');
+          return;
+        }
+
+        dom.summaryBar.classList.remove('hidden');
+
+        const totalCount = state.images.length;
+        dom.totalFilesCount.textContent =
+          totalCount === 1 ? '1 imagem' : `${totalCount} imagens`;
+
+        let sumOriginal = 0;
+        let sumCompressed = 0;
+        let readyCount = 0;
+
+        for (const item of state.images) {
+          sumOriginal += item.originalSize;
+          if (item.status === 'done') {
+            sumCompressed += item.compressedSize;
+            readyCount++;
+          } else {
+            sumCompressed += item.originalSize;
+          }
+        }
+
+        dom.totalOriginalSize.textContent = formatBytes(sumOriginal);
+        dom.totalCompressedSize.textContent = formatBytes(sumCompressed);
+
+        const savedBytes = sumOriginal - sumCompressed;
+        const savedPct = sumOriginal > 0 ? Math.round((savedBytes / sumOriginal) * 100) : 0;
+
+        if (savedBytes >= 0) {
+          dom.totalSavedBytes.textContent = formatBytes(savedBytes);
+          dom.totalSavedBytes.className =
+            'text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums';
+          dom.totalSavedPercentBadge.textContent = `-${savedPct}%`;
+          dom.totalSavedPercentBadge.className =
+            'px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 tabular-nums';
+        } else {
+          dom.totalSavedBytes.textContent = '+' + formatBytes(Math.abs(savedBytes));
+          dom.totalSavedBytes.className =
+            'text-lg font-bold text-amber-600 dark:text-amber-400 tabular-nums';
+          dom.totalSavedPercentBadge.textContent = `+${Math.abs(savedPct)}%`;
+          dom.totalSavedPercentBadge.className =
+            'px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 tabular-nums';
+        }
+
+        dom.downloadAllBtn.disabled = readyCount === 0;
+      }
+
+      // =========================================================================
+      // 6. DOWNLOAD INDIVIDUAL, REMOÇÃO E EMPACOTADOR ZIP PURO (SEM DEPENDÊNCIAS)
+      // =========================================================================
+
+      function triggerDownload(url, filename) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function downloadSingleItem(id) {
+        const item = state.images.find((img) => img.id === id);
+        if (!item || !item.compressedUrl) return;
+        triggerDownload(item.compressedUrl, item.outputFileName);
+      }
+
+      function removeSingleItem(id) {
+        const index = state.images.findIndex((img) => img.id === id);
+        if (index === -1) return;
+
+        const [removed] = state.images.splice(index, 1);
+        if (removed.originalUrl) URL.revokeObjectURL(removed.originalUrl);
+        if (removed.compressedUrl) URL.revokeObjectURL(removed.compressedUrl);
+
+        if (state.activeCompareId === id) {
+          closeCompareModal();
+        }
+
+        renderUI();
+      }
+
+      function clearAllItems() {
+        // Confirmação em 2 cliques diretamente no botão (evita o uso de confirm())
+        if (!state.clearConfirmActive) {
+          state.clearConfirmActive = true;
+          dom.clearAllBtnText.textContent = 'Clique para confirmar';
+          dom.clearAllBtn.classList.add(
+            'bg-rose-600',
+            'text-white',
+            'border-rose-600',
+            'hover:bg-rose-700',
+            'hover:text-white'
+          );
+
+          state.clearConfirmTimer = setTimeout(() => {
+            resetClearConfirmState();
+          }, 3500);
+          return;
+        }
+
+        clearTimeout(state.clearConfirmTimer);
+        resetClearConfirmState();
+
+        for (const item of state.images) {
+          if (item.originalUrl) URL.revokeObjectURL(item.originalUrl);
+          if (item.compressedUrl) URL.revokeObjectURL(item.compressedUrl);
+        }
+
+        state.images = [];
+        closeCompareModal();
+        renderUI();
+        showToast('Lista de imagens limpa.', 'info');
+      }
+
+      function resetClearConfirmState() {
+        state.clearConfirmActive = false;
+        dom.clearAllBtnText.textContent = 'Limpar Lista';
+        dom.clearAllBtn.classList.remove(
+          'bg-rose-600',
+          'text-white',
+          'border-rose-600',
+          'hover:bg-rose-700',
+          'hover:text-white'
+        );
+      }
+
+      /**
+       * Tabela CRC32 pré-calculada para gerar arquivos ZIP válidos em JavaScript puro.
+       */
+      const CRC32_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) {
+            c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+          }
+          table[i] = c;
+        }
+        return table;
+      })();
+
+      function computeCrc32(uint8Array) {
+        let crc = 0xffffffff;
+        for (let i = 0; i < uint8Array.length; i++) {
+          crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ uint8Array[i]) & 0xff];
+        }
+        return (crc ^ 0xffffffff) >>> 0;
+      }
+
+      /**
+       * Empacota múltiplos Blobs em um arquivo .ZIP (método STORE) sem bibliotecas externas.
+       */
+      async function createZipBlob(filesArray) {
+        const encoder = new TextEncoder();
+        const localParts = [];
+        const centralDirectoryParts = [];
+        let offset = 0;
+        const usedNames = new Set();
+
+        // Data/hora DOS atual
+        const now = new Date();
+        const dosTime =
+          ((now.getHours() & 0x1f) << 11) |
+          ((now.getMinutes() & 0x3f) << 5) |
+          ((Math.floor(now.getSeconds() / 2)) & 0x1f);
+        const dosDate =
+          (((now.getFullYear() - 1980) & 0x7f) << 9) |
+          (((now.getMonth() + 1) & 0x0f) << 5) |
+          (now.getDate() & 0x1f);
+
+        for (const entry of filesArray) {
+          // Garante nomes únicos dentro do ZIP caso haja arquivos homônimos
+          let fileName = entry.name;
+          let counter = 1;
+          while (usedNames.has(fileName.toLowerCase())) {
+            const dotIdx = entry.name.lastIndexOf('.');
+            const base = dotIdx > 0 ? entry.name.substring(0, dotIdx) : entry.name;
+            const ext = dotIdx > 0 ? entry.name.substring(dotIdx) : '';
+            fileName = `${base}-${counter}${ext}`;
+            counter++;
+          }
+          usedNames.add(fileName.toLowerCase());
+
+          const nameBytes = encoder.encode(fileName);
+          const arrayBuffer = await entry.blob.arrayBuffer();
+          const dataBytes = new Uint8Array(arrayBuffer);
+          const crc = computeCrc32(dataBytes);
+          const size = dataBytes.length;
+
+          // Local File Header (30 bytes + nome)
+          const localHeader = new ArrayBuffer(30 + nameBytes.length);
+          const localView = new DataView(localHeader);
+          localView.setUint32(0, 0x04034b50, true); // Assinatura Local File Header
+          localView.setUint16(4, 20, true);         // Versão necessária (2.0)
+          localView.setUint16(6, 0x0800, true);     // Flag UTF-8 para nomes com acentos
+          localView.setUint16(8, 0, true);          // Método 0 = STORE (sem recompressão)
+          localView.setUint16(10, dosTime, true);
+          localView.setUint16(12, dosDate, true);
+          localView.setUint32(14, crc, true);
+          localView.setUint32(18, size, true);       // Tamanho comprimido
+          localView.setUint32(22, size, true);       // Tamanho descomprimido
+          localView.setUint16(26, nameBytes.length, true);
+          localView.setUint16(28, 0, true);          // Extra field length
+          new Uint8Array(localHeader, 30).set(nameBytes);
+
+          localParts.push(localHeader, dataBytes);
+
+          // Central Directory File Header (46 bytes + nome)
+          const centralHeader = new ArrayBuffer(46 + nameBytes.length);
+          const centralView = new DataView(centralHeader);
+          centralView.setUint32(0, 0x02014b50, true); // Assinatura Central Directory
+          centralView.setUint16(4, 20, true);         // Version made by
+          centralView.setUint16(6, 20, true);         // Version needed
+          centralView.setUint16(8, 0x0800, true);     // Flag UTF-8
+          centralView.setUint16(10, 0, true);         // Método STORE
+          centralView.setUint16(12, dosTime, true);
+          centralView.setUint16(14, dosDate, true);
+          centralView.setUint32(16, crc, true);
+          centralView.setUint32(20, size, true);
+          centralView.setUint32(24, size, true);
+          centralView.setUint16(28, nameBytes.length, true);
+          centralView.setUint16(30, 0, true);         // Extra field length
+          centralView.setUint16(32, 0, true);         // File comment length
+          centralView.setUint16(34, 0, true);         // Disk number start
+          centralView.setUint16(36, 0, true);         // Internal file attributes
+          centralView.setUint32(38, 0, true);         // External file attributes
+          centralView.setUint32(42, offset, true);    // Offset do Local Header
+          new Uint8Array(centralHeader, 46).set(nameBytes);
+
+          centralDirectoryParts.push(centralHeader);
+          offset += localHeader.byteLength + dataBytes.byteLength;
+        }
+
+        const centralDirSize = centralDirectoryParts.reduce(
+          (acc, part) => acc + part.byteLength,
+          0
+        );
+
+        // End of Central Directory Record (22 bytes)
+        const eocd = new ArrayBuffer(22);
+        const eocdView = new DataView(eocd);
+        eocdView.setUint32(0, 0x06054b50, true); // Assinatura EOCD
+        eocdView.setUint16(4, 0, true);
+        eocdView.setUint16(6, 0, true);
+        eocdView.setUint16(8, filesArray.length, true);
+        eocdView.setUint16(10, filesArray.length, true);
+        eocdView.setUint32(12, centralDirSize, true);
+        eocdView.setUint32(16, offset, true);
+        eocdView.setUint16(20, 0, true);
+
+        return new Blob([...localParts, ...centralDirectoryParts, eocd], {
+          type: 'application/zip',
+        });
+      }
+
+      async function downloadAllAsZip() {
+        const readyItems = state.images.filter(
+          (item) => item.status === 'done' && item.compressedBlob
+        );
+        if (readyItems.length === 0) return;
+
+        // Se houver apenas 1 imagem, baixa diretamente o arquivo em vez de ZIP
+        if (readyItems.length === 1) {
+          downloadSingleItem(readyItems[0].id);
+          return;
+        }
+
+        const originalBtnHtml = dom.downloadAllBtn.innerHTML;
+        dom.downloadAllBtn.disabled = true;
+        dom.downloadAllBtn.innerHTML = `
+          <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span>Gerando .ZIP...</span>
+        `;
+
+        try {
+          const filesToZip = readyItems.map((item) => ({
+            name: item.outputFileName,
+            blob: item.compressedBlob,
+          }));
+
+          const zipBlob = await createZipBlob(filesToZip);
+          const zipUrl = URL.createObjectURL(zipBlob);
+          triggerDownload(zipUrl, `imagens-comprimidas-${readyItems.length}.zip`);
+          setTimeout(() => URL.revokeObjectURL(zipUrl), 10000);
+
+          showToast(`${readyItems.length} imagens compactadas e baixadas em .ZIP!`, 'success');
+        } catch (err) {
+          console.error(err);
+          showToast('Ocorreu um erro ao gerar o arquivo ZIP.', 'error');
+        } finally {
+          dom.downloadAllBtn.disabled = false;
+          dom.downloadAllBtn.innerHTML = originalBtnHtml;
+        }
+      }
+
+      // =========================================================================
+      // 7. MODAL DE COMPARAÇÃO VISUAL "ANTES VS. DEPOIS" COM SLIDER INTERATIVO
+      // =========================================================================
+
+      let currentSplitPercent = 50;
+      let isDraggingSlider = false;
+
+      function setCompareSliderPosition(percent) {
+        const clamped = Math.max(0, Math.min(100, percent));
+        currentSplitPercent = clamped;
+        dom.compareBeforeClip.style.clipPath = `inset(0 ${100 - clamped}% 0 0)`;
+        dom.compareDivider.style.left = `${clamped}%`;
+      }
+
+      function populateCompareModal(item) {
+        dom.compareModalTitle.textContent = item.name;
+
+        const origFmt = getFormatInfo(item.originalType).label;
+        const outFmt = getFormatInfo(item.outputType).label;
+
+        dom.modalOriginalMeta.textContent = `${origFmt} • ${item.originalWidth}×${item.originalHeight} • ${formatBytes(item.originalSize)}`;
+        dom.modalCompressedMeta.textContent = `${outFmt} • ${item.compressedWidth}×${item.compressedHeight} • ${formatBytes(item.compressedSize)}`;
+
+        const diff = item.originalSize - item.compressedSize;
+        const pct = item.originalSize > 0 ? Math.round((diff / item.originalSize) * 100) : 0;
+
+        if (diff >= 0) {
+          dom.modalSavingsBadge.textContent = `-${pct}%`;
+          dom.modalSavingsBadge.className =
+            'px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 tabular-nums';
+        } else {
+          dom.modalSavingsBadge.textContent = `+${Math.abs(pct)}%`;
+          dom.modalSavingsBadge.className =
+            'px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 tabular-nums';
+        }
+
+        dom.compareBeforeImg.src = item.originalUrl;
+        dom.compareAfterImg.src = item.compressedUrl;
+      }
+
+      function openCompareModal(id) {
+        const item = state.images.find((img) => img.id === id);
+        if (!item || item.status !== 'done') return;
+
+        state.activeCompareId = id;
+        populateCompareModal(item);
+        setCompareSliderPosition(50);
+
+        dom.compareModal.classList.remove('hidden');
+        dom.compareModal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+      }
+
+      function closeCompareModal() {
+        state.activeCompareId = null;
+        isDraggingSlider = false;
+        dom.compareModal.classList.add('hidden');
+        dom.compareModal.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+      }
+
+      function updateSliderFromPointerEvent(clientX) {
+        const rect = dom.compareStage.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const relativeX = clientX - rect.left;
+        const percent = (relativeX / rect.width) * 100;
+        setCompareSliderPosition(percent);
+      }
+
+      // =========================================================================
+      // 8. GERADOR DE IMAGEM DE EXEMPLO (PARA TESTE RÁPIDO DO USUÁRIO)
+      // =========================================================================
+
+      function generateSampleImageFile() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1600;
+        canvas.height = 1000;
+        const ctx = canvas.getContext('2d');
+
+        // Gradiente rico com detalhes geométricos para testar nitidez e compressão
+        const grad = ctx.createLinearGradient(0, 0, 1600, 1000);
+        grad.addColorStop(0, '#312e81');
+        grad.addColorStop(0.5, '#4f46e5');
+        grad.addColorStop(1, '#06b6d4');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1600, 1000);
+
+        // Formas decorativas e texturas
+        for (let i = 0; i < 18; i++) {
+          ctx.beginPath();
+          ctx.arc(
+            120 + ((i * 197) % 1360),
+            120 + ((i * 251) % 760),
+            60 + (i % 5) * 35,
+            0,
+            Math.PI * 2
+          );
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.06 + (i % 4) * 0.03})`;
+          ctx.fill();
+        }
+
+        // Cartão central com tipografia nítida
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        ctx.beginPath();
+        ctx.roundRect(240, 320, 1120, 360, 32);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 64px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('ComprimeLocal • Imagem de Teste', 800, 475);
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '32px Inter, sans-serif';
+        ctx.fillText('1600 × 1000 px • Experimente ajustar a qualidade e comparar!', 800, 555);
+
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const sampleFile = new File([blob], 'exemplo-paisagem-hd.png', {
+            type: 'image/png',
+          });
+          handleIncomingFiles([sampleFile]);
+        }, 'image/png');
+      }
+
+      // =========================================================================
+      // 9. REGISTRO DE EVENTOS (LISTENERS)
+      // =========================================================================
+
+      // Tema Claro/Escuro
+      dom.themeToggleBtn.addEventListener('click', toggleTheme);
+
+      // Clique e Teclado na Área de Upload
+      dom.dropZone.addEventListener('click', () => dom.fileInput.click());
+      dom.dropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          dom.fileInput.click();
+        }
+      });
+
+      dom.fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleIncomingFiles(e.target.files);
+          e.target.value = ''; // Permite selecionar o mesmo arquivo novamente se removido
+        }
+      });
+
+      // Drag & Drop na Área de Upload
+      ['dragenter', 'dragover'].forEach((eventName) => {
+        dom.dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dom.dropZone.classList.add(
+            'border-indigo-500',
+            'bg-indigo-50/60',
+            'dark:bg-indigo-950/30',
+            'scale-[1.005]'
+          );
+        });
+      });
+
+      ['dragleave', 'drop'].forEach((eventName) => {
+        dom.dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dom.dropZone.classList.remove(
+            'border-indigo-500',
+            'bg-indigo-50/60',
+            'dark:bg-indigo-950/30',
+            'scale-[1.005]'
+          );
+        });
+      });
+
+      dom.dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          handleIncomingFiles(dt.files);
+        }
+      });
+
+      // Evita que o navegador abra a imagem caso o usuário solte fora da dropzone
+      window.addEventListener('dragover', (e) => e.preventDefault());
+      window.addEventListener('drop', (e) => e.preventDefault());
+
+      // Imagem de exemplo
+      dom.sampleImageBtn.addEventListener('click', generateSampleImageFile);
+
+      // Painel de Configurações em Tempo Real
+      dom.qualitySlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        dom.qualityValueBadge.textContent = `${val}%`;
+        state.settings.quality = val / 100;
+        recompressAllImages();
+      });
+
+      dom.formatSelect.addEventListener('change', (e) => {
+        state.settings.format = e.target.value;
+        recompressAllImages();
+      });
+
+      dom.maxWidthSelect.addEventListener('change', (e) => {
+        state.settings.maxWidth = parseInt(e.target.value, 10) || 0;
+        recompressAllImages();
+      });
+
+      // Delegação de Eventos na Lista de Resultados (Comparar, Baixar, Remover)
+      dom.resultsList.addEventListener('click', (e) => {
+        const button = e.target.closest('button[data-action]');
+        if (!button) return;
+
+        const action = button.getAttribute('data-action');
+        const id = button.getAttribute('data-id');
+        if (!id) return;
+
+        if (action === 'compare') {
+          openCompareModal(id);
+        } else if (action === 'download') {
+          downloadSingleItem(id);
+        } else if (action === 'remove') {
+          removeSingleItem(id);
+        }
+      });
+
+      // Ações da Barra de Resumo Geral
+      dom.clearAllBtn.addEventListener('click', clearAllItems);
+      dom.downloadAllBtn.addEventListener('click', downloadAllAsZip);
+
+      // Eventos do Modal de Comparação Antes vs. Depois
+      dom.closeCompareModalBtn.addEventListener('click', closeCompareModal);
+      dom.modalCloseFooterBtn.addEventListener('click', closeCompareModal);
+      dom.modalDownloadBtn.addEventListener('click', () => {
+        if (state.activeCompareId) {
+          downloadSingleItem(state.activeCompareId);
+        }
+      });
+
+      dom.compareModal.addEventListener('click', (e) => {
+        if (e.target === dom.compareModal) {
+          closeCompareModal();
+        }
+      });
+
+      // Eventos de Mouse e Toque no Slider de Comparação
+      dom.compareStage.addEventListener('mousedown', (e) => {
+        isDraggingSlider = true;
+        updateSliderFromPointerEvent(e.clientX);
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingSlider) return;
+        updateSliderFromPointerEvent(e.clientX);
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDraggingSlider = false;
+      });
+
+      dom.compareStage.addEventListener(
+        'touchstart',
+        (e) => {
+          if (e.touches.length > 0) {
+            isDraggingSlider = true;
+            updateSliderFromPointerEvent(e.touches[0].clientX);
+          }
+        },
+        { passive: true }
+      );
+
+      dom.compareStage.addEventListener(
+        'touchmove',
+        (e) => {
+          if (!isDraggingSlider || e.touches.length === 0) return;
+          updateSliderFromPointerEvent(e.touches[0].clientX);
+        },
+        { passive: true }
+      );
+
+      dom.compareStage.addEventListener('touchend', () => {
+        isDraggingSlider = false;
+      });
+
+      // Atalhos de Teclado para o Modal (ESC para fechar, Setas para mover o divisor)
+      window.addEventListener('keydown', (e) => {
+        if (!state.activeCompareId) return;
+
+        if (e.key === 'Escape') {
+          closeCompareModal();
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setCompareSliderPosition(currentSplitPercent - 3);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          setCompareSliderPosition(currentSplitPercent + 3);
+        }
+      });
+
+      // Inicialização
+      initTheme();
+    })();
+  </script>
+</body>
+</html>
